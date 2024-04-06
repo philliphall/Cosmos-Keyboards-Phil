@@ -87,8 +87,8 @@ export function trackballSocket(opt: Partial<TrackballOptions>): Solid {
 }
 
 function addBallBearings(socket: Solid, opts: TrackballOptions) {
-  const ballR = 1.585 // 1/8 inch outer diameter ball bearings
-  const ballClearance = 0.2 // Space to add around the ball
+  const ballR = 1.5 // 1/8 inch outer diameter ball bearings
+  const ballClearance = 0.1 // Space to add around the ball
   const cylinderThickness = 2 // Thickness of cylinder to add around the ball
   const cylinderAboveBall = 1 // How far above the center of the ball the cylinder should extend
 
