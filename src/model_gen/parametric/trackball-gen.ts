@@ -20,7 +20,7 @@ const DEFAULT_OPTS = {
   sensorDistance: 0.9,
 
   sensor: 'joe' as 'joe',
-  bearings: 'ball' as 'roller' | 'ball',
+  bearings: 'static' as 'radial' | 'static' | 'btu',
 
   /** Angle from horizontal at which bearings are placed (~phi in polar coordinates) */
   bearingPhi: 13,
@@ -78,15 +78,17 @@ export function trackballSocket(opt: Partial<TrackballOptions>): Solid {
     .sketchOnPlane('XZ')
     .revolve() as Solid
 
-  if (opts.bearings == 'roller') socket = addRollerBearings(socket, opts)
-  if (opts.bearings == 'ball') socket = addBallBearings(socket, opts)
+  if (opts.bearings == 'radial') socket = addRadialBearings(socket, opts)
+  if (opts.bearings == 'static') socket = addStaticBearings(socket, opts)
+  if (opts.bearings == 'btu') socket = addBtuBearings(socket, opts)
 
   if (opts.sensor == 'joe') socket = addJoesSensor(socket, opts)
 
   return socket.translateZ(-webThickness)
 }
 
-function addBallBearings(socket: Solid, opts: TrackballOptions) {
+// Add static bearing mounts (just a small ball that doesn't rotate serving as a low-friction point of contact)
+function addStaticBearings(socket: Solid, opts: TrackballOptions) {
   const ballR = 1.5 // 1/8 inch outer diameter ball bearings
   const ballClearance = 0.1 // Space to add around the ball
   const cylinderThickness = 2 // Thickness of cylinder to add around the ball
@@ -122,8 +124,8 @@ function addBallBearings(socket: Solid, opts: TrackballOptions) {
     .fuse(t.transform(outer))), socket)
 }
 
-/** Add roller bearings (a 2.5 x 6mm OD wheel attached to a 8mm x 3mm OD rod) to the socket. */
-function addRollerBearings(socket: Solid, opts: TrackballOptions) {
+// Add radial bearings (a 2.5 x 6mm OD wheel attached to a 8mm x 3mm OD rod) to the socket.
+function addRadialBearings(socket: Solid, opts: TrackballOptions) {
   const { r, innerR } = trackballGeometry(opts)
 
   const dowelR = 1.5 // Dowel radius
@@ -164,6 +166,39 @@ function addRollerBearings(socket: Solid, opts: TrackballOptions) {
   return bearingTrsfs(opts).reduce((socket, t) => (socket
     .fuse(t.transform(outers))
     .cut(t.transform(inners))), socket)
+}
+
+// Add Ball Transfer Unit (BTU) bearings
+function addBtuBearings(socket: Solid, opts: TrackballOptions) {
+  // BTU Parameters
+  const btuD = 7.5 // Diameter of the portion that slides into the socket https://www.aliexpress.us/item/3256805224793948.html?spm=a2g0o.order_detail.order_detail_item.2.3ef2f19cqdNuKQ&gatewayAdapt=glo2usa
+  const btuClearance = 0.2 // Extra cut around each side of the BTU's diameter
+  const btuDepth = 5 // Depth to cut the hole for BTU (include the mounting ring depth)
+  const btuDepthWBall = 6 // Total depth of the BTU including the roller ball - this helps determine where to place it for proper contact
+  const btuMountD = 9 // Diameter of the outermost ring of the BTU - the one that keeps it from sliding all the way into the hole
+  const btuMountT = 1 // Thickness of the BTU mount ring (no clearance is added to this value!)
+
+  // Calculated Values to keep things cleaner below
+  const btuHoleR = (btuD / 2) + btuClearance
+  const btuMountHoleR = (btuMountD / 2) + (btuClearance * 2)
+  const btuBallDepth = btuDepthWBall - btuDepth
+  const extraMountDepth = btuBallDepth - (opts.spaceAroundBall / 2) // THIS STILL NEEDS WORK - I don't fully understand how the angle map translation works and what constitutes the origin position of the model.
+
+  // The BTU main body cylinder
+  const btuCylinder = drawCircle(btuHoleR)
+    .sketchOnPlane('ZY')
+    .extrude(btuDepth + btuClearance + extraMountDepth) as Solid
+
+  // The BTU Mounting Ring
+  const btuMountRing = drawCircle(btuMountHoleR)
+    .sketchOnPlane('ZY')
+    .extrude(btuMountT + extraMountDepth) as Solid
+
+  const btuCutOut = btuCylinder.fuse(btuMountRing)
+
+  // return combine(bearingTrsfs(opts).map(t => t.transform(outer).cut(t.transform(inner))))
+  return bearingTrsfs(opts).reduce((socket, t) => (socket
+    .cut(t.transform(btuCutOut))), socket)
 }
 
 /** Add sensor mount for the PMW Sensor PCB designed by Joe's Sensors. */

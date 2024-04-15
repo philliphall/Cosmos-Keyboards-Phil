@@ -83,7 +83,7 @@ async function main() {
   // Make all combinations of trackballs
   for3(
     [25, 34],
-    ['roller', 'ball'] as TrackballOptions['bearings'][],
+    ['radial', 'static', 'btu'] as TrackballOptions['bearings'][],
     ['joe'] as TrackballOptions['sensor'][],
   )(
     (diameter, bearings, sensor) => {
