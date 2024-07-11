@@ -25,7 +25,10 @@ const DEFAULT_OPTS = {
   /** Angle from horizontal at which bearings are placed (~phi in polar coordinates) */
   bearingPhi: 13,
   /** Angles at which bearings are placed about the Z axis (~theta in polar coodinates) */
-  bearingThetas: [90, 210, 330],
+  // bearingThetas: [90, 210, 330],
+  // ** Angles at which bearings are placed about the Z and Y axis (~theta in polar coodinates) */
+
+  bearingThetas: [[-5, 90], [-13, 210], [-13, 330]],
 }
 
 export type TrackballOptions = typeof DEFAULT_OPTS
@@ -50,11 +53,11 @@ function trackballGeometry(opts: TrackballOptions) {
 
 /** Returns the transformations to put the bearings (roller or ball bearings) into place. */
 function bearingTrsfs(opts: TrackballOptions) {
-  return opts.bearingThetas.map(angle =>
+  return opts.bearingThetas.map(angles =>
     new Trsf()
       .translate(-trackballGeometry(opts).r, 0, 0)
-      .rotate(-opts.bearingPhi, [0, 0, 0], [0, 1, 0])
-      .rotate(angle)
+      .rotate(-opts.bearingPhi - angles[0], [0, 0, 0], [0, 1, 0])
+      .rotate(angles[1])
   )
 }
 
@@ -89,7 +92,7 @@ export function trackballSocket(opt: Partial<TrackballOptions>): Solid {
 
 // Add static bearing mounts (just a small ball that doesn't rotate serving as a low-friction point of contact)
 function addStaticBearings(socket: Solid, opts: TrackballOptions) {
-  const ballR = 1.5 // 1/8 inch outer diameter ball bearings
+  const ballR = 1 // Radius of the ball bearings
   const ballClearance = 0.1 // Space to add around the ball
   const cylinderThickness = 2 // Thickness of cylinder to add around the ball
   const cylinderAboveBall = 1 // How far above the center of the ball the cylinder should extend
@@ -117,10 +120,14 @@ function addStaticBearings(socket: Solid, opts: TrackballOptions) {
   const inner = halfCapsule(ballR + ballClearance, ballR)
   const outer = ringCylinder(ballR + ballClearance + 1e-3, ballR + ballClearance + cylinderThickness, ballR + ballClearance + 0.5, cylinderAboveBall)
     .translateX(-ballR + cylinderAboveBall)
+  const ejectHole = drawCircle(ballR / 2)
+    .sketchOnPlane('ZY')
+    .extrude(99) as Solid
 
   // return combine(bearingTrsfs(opts).map(t => t.transform(outer).cut(t.transform(inner))))
   return bearingTrsfs(opts).reduce((socket, t) => (socket
     .cut(t.transform(inner))
+    .cut(t.transform(ejectHole))
     .fuse(t.transform(outer))), socket)
 }
 
